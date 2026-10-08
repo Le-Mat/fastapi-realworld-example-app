@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: ghcr.io/le-mat/fastapi-realworld-example-app:latest
     restart: on-failure
     environment:
       APP_ENV: prod
