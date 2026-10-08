@@ -1,21 +1,31 @@
-FROM python:3.9.10-slim
+#--------- 1. Builder --------
+FROM python:3.9-slim AS builder
 
-ENV PYTHONUNBUFFERED 1
+WORKDIR /build
+
+RUN pip install --no-cache-dir poetry==1.8.3
+
+COPY pyproject.toml poetry.lock* ./
+RUN poetry export --without dev --format requirements.txt --output requirements.txt --without-hashes
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install --no-cache-dir -r requirements.txt
+
+#-------- 2. runtime --------
+FROM python:3.9-slim AS runtime
+
+RUN groupadd --system app && useradd --system --gid app --no-create-home app
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+COPY /app ./app/
+COPY alembic.ini ./
+
+USER app
 
 EXPOSE 8000
-WORKDIR /app
-
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends netcat && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-COPY poetry.lock pyproject.toml ./
-RUN pip install poetry==1.1 && \
-    poetry config virtualenvs.in-project true && \
-    poetry install --no-dev
-
-COPY . ./
-
-CMD poetry run alembic upgrade head && \
-    poetry run uvicorn --host=0.0.0.0 app.main:app
+CMD ["/bin/sh", "-c", "alembic upgrade head && \
+    uvicorn app.main:app --host=0.0.0.0 --port=8000"]
