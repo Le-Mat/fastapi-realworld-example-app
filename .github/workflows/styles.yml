@@ -46,5 +46,8 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction
 
+      - name: Install setuptools (pkg_resources)
+        run: poetry run pip install setuptools
+
       - name: Run linters
         run: poetry run ./scripts/lint
